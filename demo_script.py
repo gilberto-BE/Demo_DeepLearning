@@ -5,7 +5,6 @@ Created on Sun Apr  1 13:30:01 2018
 
 @author: Gilberto Batres-Estrada
 """
-
 from IPython.display import Image
 import pandas as pd
 import numpy as np
@@ -120,10 +119,10 @@ def get_train_dev_test(data_x, dev=0.85, drop_col=0.05):
 #             data_x = data_x.drop(col, axis=1)
 #             print('Stock {} has been dropped as it had more than {} % Nas'.\
 #                   format(col, drop_col * 100))
-# 
+#
 #     print('Number of stocks dropped:', len(dropped_stocks))
 #     print('Number of stocks that are kept: ', len(data_x.columns))
-# 
+#
 # =============================================================================
     test_idx = int(0.9 * len(data_x))
     x_test = data_x.iloc[test_idx:, :]
@@ -139,7 +138,7 @@ def get_train_dev_test(data_x, dev=0.85, drop_col=0.05):
 
 
 # Get train and development sets
-# Note this function assumes a time series, indexing has to be 
+# Note this function assumes a time series, indexing has to be
 # modified if using a dataframe
 # x is either price series or return series
 def get_train_dev(x, dev=0.85):
@@ -148,19 +147,19 @@ def get_train_dev(x, dev=0.85):
     dev_ix = int(dev * len(x))
     train = x.iloc[:dev_ix]
     dev = x.iloc[dev_ix:]
-    
+
     # impute data
     # dont use pipeline in order to inverse transform
     # reshape([-1, 1]) is only needed in the case of working with a 1-Dim series
     imputer = Imputer(strategy='median')
     train = imputer.fit_transform(train.values.reshape([-1, 1]))
     dev = imputer.transform(dev.values.reshape([-1, 1]))
-    
+
     # normalize
     scaler = MinMaxScaler(feature_range=(-1, 1))
     train = scaler.fit_transform(train.reshape(-1, 1))
     dev = scaler.transform(dev.reshape(-1, 1))
-    
+
     # transform data to tensors
     # for now we index in 2-Dim because we started with
     # 1-Dim time series
@@ -168,11 +167,11 @@ def get_train_dev(x, dev=0.85):
     train = to_tensor(train)
     x_train = train[:,:-1]
     y_train = train[:,-1]
-    
+
     dev = to_tensor(dev)
     x_dev = dev[:, :-1]
     y_dev = dev[:, -1]
-    
+
     return x_train, y_train, x_dev, y_dev
 
 
@@ -188,38 +187,38 @@ plt.show()
 
 
 if __name__ == '__main__':
-    data = pd.read_csv('closing_prices_tiingo.csv', parse_dates=True, 
+    data = pd.read_csv('closing_prices_tiingo.csv', parse_dates=True,
                        infer_datetime_format=True)
     data['date'] = pd.to_datetime(data['date'])
     data.set_index('date', inplace=True)
     print(data.head())
-    
+
     plt.figure()
     data.plot(legend=False, title='All stocks in data set')
     plt.show()
-    
+
     aapl = data['AAPL']
     print(aapl.head())
-    
-    
+
+
     plt.figure()
     aapl.plot(legend=True)
     plt.show()
-    
+
     ret = to_return(aapl)
     print(ret.head())
     print('Shape of data: {}'.format(ret.shape))
     plt.figure()
     ret.plot(title='AAPL Returns')
     plt.show()
-    
-    
+
+
     plt.figure()
     stats.probplot(ret, dist='norm', plot=pylab)
     plt.title('QQ-plot for AAPL returns')
     pylab.show()
-    
-    
+
+
     x_train, y_train, x_dev, y_dev, x_test, y_test, scaler = split_train_dev_test(data)
     print('type of x_train', type(x_train[0]))
     print(x_train)
@@ -227,9 +226,9 @@ if __name__ == '__main__':
     print(y_train.shape)
     print(x_dev.shape)
     print(y_dev.shape)
-    
-    
-    
+
+
+
     num_features = x_train.shape[-1]
     print('num_features', num_features)
     num_outputs = y_train.shape[-1]
