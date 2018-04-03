@@ -6,12 +6,14 @@ Created on Tue Feb 13 20:16:08 2018
 """
 import numpy as np
 import pandas as pd
+import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.optim as optim
 from sklearn.preprocessing import MinMaxScaler, Imputer, QuantileTransformer
-#from torch.utils.data import Dataloader
+from torch.utils.data import DataLoader
+
 
 use_cuda = torch.cuda.is_available()
 
@@ -30,7 +32,7 @@ class LSTMLayers(nn.Module):
         self.batch_first = batch_first
         self.drop_rate = nn.Dropout(self.dropout)
 
-#        self.hidden = self.init_hidden()
+        self.hidden = self.init_hidden()
         self.lstm = nn.LSTM(self.input_size,
                             self.hidden_units,
                             self.num_layers,
@@ -43,7 +45,7 @@ class LSTMLayers(nn.Module):
         Output: (N,∗,out_features) where all but the last
         dimension are the same shape as """
         self.linear = nn.Linear(in_features=self.hidden_units,
-                                out_feutures=1)
+                                out_features=1)
 
         if use_cuda:
             """ there are 2 elements in self.hidden"""
@@ -61,14 +63,14 @@ class LSTMLayers(nn.Module):
                             requires_grad=False)
         return (zeros, zeros)
 
-    def forward(self, X, hidden):
+    def forward(self, X):
         if use_cuda:
                X = X.cuda()
-        out, hidden = self.lstm(X, hidden)
-        out = self.drop(out)
+        out, hidden = self.lstm(X, self.hidden)
+        out = self.drop_rate(out)
         out = self.linear(out[-1].view(-1, self.hidden_units))
         return out
-
+#-----------------------------------------------------------------------------------
 
 def to_tensor(data, timesteps=30):
     x = np.array([data[i:i + timesteps]
@@ -114,6 +116,45 @@ def get_train_dev(x, dev=0.85):
     return x_train, y_train, x_dev, y_dev
 
 
+def mini_batch(X, Y, mini_batch_size=64, shuffle=False):
+    """ Creates a list of minibatches from (X, Y)
+    This function a new version for the keras model where data
+    has to be structure differently
+    Arguments:
+    X -- input data of shape (number of examples, input_dim)
+    Y -- true label vector of shape (number o examples, 1)
+    mini_batch_size -- size of mini-batches, integer
+    Return:
+    A list with minibatches for X and Y
+    """
+    # New code to handle many columns: 2018-03-22
+    Y = Y.reshape(Y.shape[0], -1)
+
+    print('type(X):', type(X))
+    print('dim(X):', X.shape)
+    m = len(X) # this is the total number of examples
+    mini_batches = []
+    # TODO: Complete the if case
+    if shuffle:
+        seed = 0
+        np.random.seed(seed)
+
+    # number of complete
+    num_complete_minibatches = math.floor(m/mini_batch_size)
+    for k in range(num_complete_minibatches):
+        mini_batch_X = X[k * mini_batch_size:(k + 1) * mini_batch_size, :]
+        mini_batch_Y = Y[k * mini_batch_size:(k + 1) * mini_batch_size, :]
+        mini_batch = (mini_batch_X, mini_batch_Y)
+        mini_batches.append(mini_batch)
+
+    if m % mini_batch_size != 0:
+        mini_batch_X = X[:m - mini_batch_size * math.floor(m/mini_batch_size), :]
+        mini_batch_Y = Y[:m - mini_batch_size * math.floor(m/mini_batch_size), :]
+        mini_batch = (mini_batch_X, mini_batch_Y)
+        mini_batches.append(mini_batch)
+
+    return mini_batches
+
 
 def to_return(x, period=1):
     """ This function supposes that the input is a
@@ -132,11 +173,57 @@ if __name__ == '__main__':
     aapl = data['AAPL']
     ret = to_return(aapl)
     x_train, y_train, x_dev, y_dev = get_train_dev(ret)
+    
     print('type of x_train', type(x_train[0]))
-    print(x_train)
+    print(x_train[0])
     print(x_train.shape)
     print(y_train.shape)
     print(x_dev.shape)
     print(y_dev.shape)
+    print('')
+    print('Check the minibatch:')
+    
+    
+    MINIBATCH = 2**4
+    mini_batches_train = mini_batch(x_train, y_train, mini_batch_size=MINIBATCH)
+    print('type mini-batch:', type(mini_batches_train))
+    print('x[0]-element:')
+    print(type(mini_batches_train[0][0]))
+    print(mini_batches_train[0][0].shape)
+    #print(mini_batches_train[0][0])
+    print('length of minibatches:', len(mini_batches_train))
+    
+    model = LSTMLayers(batch=MINIBATCH)
+    dtype = torch.FloatTensor
+    
+    number_of_workers = 8
+    
+    x_train = Variable(torch.from_numpy(x_train).type(dtype))
+    y_train = Variable(torch.from_numpy(y_train).type(dtype))
+    x_train_minibatch = DataLoader(x_train,
+                                   batch_size=MINIBATCH,
+                                   num_workers=number_of_workers,
+                                   drop_last=True,
+                                   pin_memory=True)
+    
+    y_train_minibatch = DataLoader(y_train,
+                                   batch_size=MINIBATCH,
+                                   num_workers=number_of_workers,
+                                   drop_last=True,
+                                   pin_memory=True)
+    
+    for i in range(len(mini_batches_train)):
+#        x_train_batch, y_train_batch = mini_batches_train[i]
+#        print('from for loop')
+#        print(type(x_train_batch))
+#        print(x_train_batch.shape)
+#        x_train_batch = Variable(torch.from_numpy(
+#                x_train_batch).type(dtype)).view(x_train_batch.shape[1], MINIBATCH, -1)
+        x_train_batch = x_train_minibatch.contiguous().view(x_train_minibatch.shape[1], MINIBATCH, -1)
+        print('type x_train_batch as Variable argument', type(x_train_batch))
+        out = model(x_train_batch)
+        print('print out from model:', out)
+        
+        
     
 
