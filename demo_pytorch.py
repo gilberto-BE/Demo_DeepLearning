@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr  3 22:01:42 2018
+
+@author: pia
+"""
+
 # -*- coding: utf-8 -*-
 """
 Created on Tue Feb 13 20:16:08 2018
@@ -116,46 +124,6 @@ def get_train_dev(x, dev=0.85):
     return x_train, y_train, x_dev, y_dev
 
 
-def mini_batch(X, Y, mini_batch_size=64, shuffle=False):
-    """ Creates a list of minibatches from (X, Y)
-    This function a new version for the keras model where data
-    has to be structure differently
-    Arguments:
-    X -- input data of shape (number of examples, input_dim)
-    Y -- true label vector of shape (number o examples, 1)
-    mini_batch_size -- size of mini-batches, integer
-    Return:
-    A list with minibatches for X and Y
-    """
-    # New code to handle many columns: 2018-03-22
-    Y = Y.reshape(Y.shape[0], -1)
-
-    print('type(X):', type(X))
-    print('dim(X):', X.shape)
-    m = len(X) # this is the total number of examples
-    mini_batches = []
-    # TODO: Complete the if case
-    if shuffle:
-        seed = 0
-        np.random.seed(seed)
-
-    # number of complete
-    num_complete_minibatches = math.floor(m/mini_batch_size)
-    for k in range(num_complete_minibatches):
-        mini_batch_X = X[k * mini_batch_size:(k + 1) * mini_batch_size, :]
-        mini_batch_Y = Y[k * mini_batch_size:(k + 1) * mini_batch_size, :]
-        mini_batch = (mini_batch_X, mini_batch_Y)
-        mini_batches.append(mini_batch)
-
-    if m % mini_batch_size != 0:
-        mini_batch_X = X[:m - mini_batch_size * math.floor(m/mini_batch_size), :]
-        mini_batch_Y = Y[:m - mini_batch_size * math.floor(m/mini_batch_size), :]
-        mini_batch = (mini_batch_X, mini_batch_Y)
-        mini_batches.append(mini_batch)
-
-    return mini_batches
-
-
 def to_return(x, period=1):
     """ This function supposes that the input is a
     dataframe or series"""
@@ -182,17 +150,16 @@ if __name__ == '__main__':
     print(y_dev.shape)
     print('')
     print('Check the minibatch:')
-    
+
+# =============================================================================
+#     optimizer.step(closure)
+#     Some optimization algorithms such as Conjugate Gradient and 
+#     LBFGS need to reevaluate the function multiple times, 
+#     so you have to pass in a closure that allows them to recompute your
+#     model. The closure should clear the gradients, compute the loss, and return it.
+# =============================================================================
     
     MINIBATCH = 2**4
-    mini_batches_train = mini_batch(x_train, y_train, mini_batch_size=MINIBATCH)
-    print('type mini-batch:', type(mini_batches_train))
-    print('x[0]-element:')
-    print(type(mini_batches_train[0][0]))
-    print(mini_batches_train[0][0].shape)
-    #print(mini_batches_train[0][0])
-    print('length of minibatches:', len(mini_batches_train))
-    
     model = LSTMLayers(batch=MINIBATCH)
     dtype = torch.FloatTensor
     
@@ -212,6 +179,12 @@ if __name__ == '__main__':
                                    drop_last=True)
     model.train()
     model.hidden = model.init_hidden()
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), 
+                                 lr=0.001, 
+                                 betas=(0.9, 0.999), 
+                                 eps=1e-08, 
+                                 weight_decay=0)
     
     for k, (input_data, target) in enumerate(
             zip(x_train_minibatch, y_train_minibatch)):
@@ -219,25 +192,16 @@ if __name__ == '__main__':
             model.zero_grad()
             features = input_data.view(input_data.size()[1], MINIBATCH, -1)
             features = Variable(features)
-
-            print('features')
-            print(features)
+            label = Variable(target)
+#            print('features')
+#            print(features)
             out = model(features)
-            print(out)
-        closure()
+            loss = criterion(out, label)
+            loss.backward()
+            return loss
+#            print(out)
+        optimizer.step(closure)
             
-    
-#    for i in range(len(mini_batches_train)):
-#        x_train_batch, y_train_batch = mini_batches_train[i]
-#        print('from for loop')
-#        print(type(x_train_batch))
-#        print(x_train_batch.shape)
-#        x_train_batch = Variable(torch.from_numpy(
-#                x_train_batch).type(dtype)).view(x_train_batch.shape[1], MINIBATCH, -1)
-#        x_train_batch = x_train_minibatch.contiguous().view(x_train_minibatch.shape[1], MINIBATCH, -1)
-#        print('type x_train_batch as Variable argument', type(x_train_batch))
-#        out = model(x_train_batch)
-#        print('print out from model:', out)
         
         
     
