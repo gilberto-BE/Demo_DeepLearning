@@ -149,7 +149,7 @@ if __name__ == '__main__':
     print(x_dev.shape)
     print(y_dev.shape)
     print('')
-    print('Check the minibatch:')
+
 
 # =============================================================================
 #     optimizer.step(closure)
@@ -199,7 +199,7 @@ if __name__ == '__main__':
             loss = criterion(out, label)
             loss.backward()
             return loss
-#            print(out)
+
         optimizer.step(closure)
             
         
